@@ -114,7 +114,7 @@ clean:
 /*  default flags  */
 /*  -------------  */
 #define  DEBUG_FLAG  0 /* '1' prints debug info, i.e., a hexdump of certain areas; '0' does not */
-#define  OK_TO_WRITE 0 /* '1' write; '0' don't write */
+#define  OK_TO_WRITE 1 /* '1' write; '0' don't write */
 
 #include  <stdlib.h>
 #include  <stdio.h>
@@ -142,9 +142,9 @@ int  ok_to_write=OK_TO_WRITE;  /*  ditto                               */
 /*  --------------  */
 int main(int argc, char *argv[]) {
 int  fd;  /*  file descriptor of file being 'zap'ped  */
-char fn[128]="";
+char fn[128] = "";
 int  ret, i, c;
-int  datalen  = 0;
+int  datalen = 0;
 int  errno, errsv;
 uint len  = 0;
 uint skip = 0;
@@ -199,6 +199,7 @@ char data[DESTSIZE];
                 printf("    ver  <offset> <data>\n");
                 printf("    rep  <offset> <data>\n");
                 printf("    dump <filename> <length> <skip>\n");
+                printf("    reset - turn the 'dryrun' flag off\n");
                 printf(" (anything unrecognised is ignored)\n");
                 printf("It would make sense to place the name(s) and ver(s) before the (name(s) and) rep(s),\n");
                 printf("as \"failed vers\" set a switch to force a \"read-only\" mode\n");
@@ -229,7 +230,7 @@ char data[DESTSIZE];
 
         if ((p = strtok(p, " \t\n")) == NULL) continue;
         // todo: tranlate verb to lc. strtolower is just a stub.
-        strtolower(p); // tranlate verb to lc so strcmp's below are easier to do
+        strtolower(p); // tranlate verb to lc so strcmp's below are accurate
 
         if (strcmp(p, "verify") == 0 || strcmp(p, "ver") == 0) {
             /*  ----------------------------------------  */
@@ -239,26 +240,26 @@ char data[DESTSIZE];
             /*  ----------------------------------------  */
             if ((p = strtok(NULL, " \t\n")) == NULL) {
                 printf("missing offset; exiting\n");
-//              exit(4);
+                exit(4);
             }
             /*  ----------------------------------------  */
             /*  convert offset                            */
             /*  ----------------------------------------  */
             skip = do_offset(p);
-            if(debug) printf("--> offset in hex: %x\n", skip);
+            if(debug) printf("(debug) offset in hex: %x\n", skip);
 
             /*  ----------------------------------------  */
             /*  get next token (data)                     */
             /*  ----------------------------------------  */
             if ((p = strtok(NULL, " \t\n")) == NULL) {
                 printf("missing data; exiting\n");
-//              exit(4);
+                exit(4);
             }
             /*  ----------------------------------------  */
             /*  convert data                              */
             /*  ----------------------------------------  */
             datalen = do_data(data, p);
-            if(debug) printf("--> datalen in hex = %x\n", datalen);
+            if(debug) printf("(debug) datalen in hex = %x\n", datalen);
             /*  ----------------------------------------  */
             /*  position the file to the offset           */
             /*  ----------------------------------------  */
@@ -272,15 +273,15 @@ char data[DESTSIZE];
             /*  cmd and display if they don't agree       */
             /*  ----------------------------------------  */
             if (!memcmp(data, buf, datalen) == 0) {
-                printf("'data' discompares; no writes will be performed\n");
-                if(debug) hexDump("--> hexDump of data in ver", data, datalen, skip);
-                hexDump("--> hexDump of data in named file", buf, datalen, skip);
+                printf("*** 'data' discompares; no writes will be performed ***\n");
+                if(debug) hexDump("(debug) hexDump of data in ver", data, datalen, skip);
+                hexDump("hexDump of data in named file", buf, datalen, skip);
                 ok_to_write = 0;
             } else {
             /*  ----------------------------------------  */
             /*  else, they agree; display if debug        */
             /*  ----------------------------------------  */
-                if(debug) hexDump("--> hexDump of data in ver", data, datalen, skip);
+                if(debug) hexDump("(debug) hexDump of data in ver", data, datalen, skip);
 	    }
 
             continue;
@@ -293,28 +294,28 @@ char data[DESTSIZE];
             /*  ----------------------------------------  */
             if ((p = strtok(NULL, " \t\n")) == NULL) {
                 printf("missing offset; exiting\n");
-//              exit(4);
+                exit(4);
             }
             /*  ----------------------------------------  */
             /*  convert offset                            */
             /*  ----------------------------------------  */
             skip = do_offset(p);
-            if(debug) printf("--> offset in hex: %x\n", skip);
+            if(debug) printf("(debug) offset in hex: %x\n", skip);
 
             /*  ----------------------------------------  */
             /*  get next token (data)                     */
             /*  ----------------------------------------  */
             if ((p = strtok(NULL, " \t\n")) == NULL) {
                 printf("missing offset; exiting\n");
-//              exit(4);
+                exit(4);
             }
             /*  ----------------------------------------  */
             /*  convert data                              */
             /*  ----------------------------------------  */
             datalen = do_data(data, p);
             if(debug) {
-                printf("--. datalen in hex = %x\n", datalen);
-                hexDump("--> hexDump of data: ", data, datalen, skip);
+                printf("(debug) datalen in hex = %x\n", datalen);
+                hexDump("(debug) hexDump of data: ", data, datalen, skip);
             }
             /*  ----------------------------------------  */
             /*  position the file to the offset           */
@@ -325,7 +326,7 @@ char data[DESTSIZE];
             /*  ----------------------------------------  */
             if(ok_to_write) printf("write will be done\n");
             else            printf("write will NOT be done\n");
-            if(ok_to_write) write(fd, buf, datalen);
+            if(ok_to_write) write(fd, data, datalen);
 
             continue;
 
@@ -337,19 +338,21 @@ char data[DESTSIZE];
             /*  ----------------------------------------  */
             if ((p = strtok(NULL, " \t\n")) == NULL) {
                 printf("<fn> missing; exiting.\n");
-//              exit(4);
+                exit(4);
             } else {
-                if (strcmp(fn, "")) {
-                    if(debug) printf("closing %s\n", fn);
+                if ((strcmp(fn, "")) != 0) {
+                    if(debug) printf("(debug) closing prior <fn>, %s\n", fn);
                     close(fd);
                 }
                 strcpy(fn, p); // don't tr fn as linux is case sensitive and fn may be mixed case
+                if(debug) printf("(debug) opening new <fn>, %s\n", fn);
                 if ((fd = open(fn, O_RDWR | O_LARGEFILE)) == -1) {
                     errsv = errno;
                     fprintf(stderr, "The input file '%s' could not be opened\n", fn);
                     fprintf(stderr, " errno is '%i - %s'\n", errsv, strerror(errsv));
                     exit(4);
                 }
+                if(debug) printf("(debug) new <fn>, %s, opened\n", fn);
             }
             continue;
 
@@ -361,30 +364,31 @@ char data[DESTSIZE];
             /*  ----------------------------------------  */
             if ((p = strtok(NULL, " \t\n")) == NULL) {
                 printf("<fn> missing; exiting.\n");
-                continue;  //  temp - ignore bad card
                 exit(4);
             } else {
                 if (strcmp(fn, "")) {
-                    if(debug) printf("closing %s\n", fn);
+                    if(debug) printf("(debug) closing prior <fn>, %s\n", fn);
                     close(fd);
                 }
                 strcpy(fn, p); // don't tr fn as linux is case sensitive and fn may be mixed case
+                if(debug) printf("(debug) opening new <fn>, %s\n", fn);
                 if ((fd = open(fn, O_RDONLY | O_LARGEFILE)) == -1) {
                     perror("open");
                     printf("(filename=%s)\n", fn);
-                    continue;  //  temp - ignore bad card
                     exit(4);
                 }
+                if(debug) printf("(debug) new <fn>, %s, opened\n", fn);
             }
+
             /*  ----------------------------------------  */
             /*  get next token (length)                   */
             /*  ----------------------------------------  */
             if ((p = strtok(NULL, " \t\n")) == NULL) {
                 len = LENTODUMP;
-                if(debug) printf("--> length missing; default to %i\n", LENTODUMP);
+                if(debug) printf("(debug) length missing; default to %x hex (%i decimal)\n", LENTODUMP, LENTODUMP);
             } else {
                 len = do_offset(p); //  get length
-                if(debug) printf("--> length is specified and equals %i\n", len);
+                if(debug) printf("(debug) length is specified and equals %x hex (%i decimal)\n", len, len );
 		//  todo: validate length...
             }
             /*  ----------------------------------------  */
@@ -392,19 +396,23 @@ char data[DESTSIZE];
             /*  ----------------------------------------  */
             if ((p = strtok(NULL, " \t\n")) == NULL) {
                 skip = SKIP;
-                if(debug) printf("--> skip missing; default to %i\n", SKIP);
+                if(debug) printf("(debug) skip missing; default to %x hex (%i decimal)\n", SKIP, SKIP);
             } else {
                 skip = do_offset(p); //  get skip
-                if(debug) printf("--> skip is specified and equals %i\n", skip);
+                if(debug) printf("(debug) skip is specified and equals %x hex (%i decimal)\n", skip, skip);
             }
+
             /*  -------  */
             /*  lseek64  */
             /*  -------  */
-	    if (skip != 0) lseek64(fd, skip, SEEK_SET);
+            if (skip != 0) lseek64(fd, skip, SEEK_SET);
+
 	    /*  ----  */
             /*  read  */
 	    /*  ----  */
+
 	    read(fd, data, len);
+
             /*  ---------  */
             /*  then dump  */
             /*  ---------  */
@@ -417,6 +425,7 @@ char data[DESTSIZE];
             /*  we have a 'reset' control card            */
             /*  ----------------------------------------  */
             ok_to_write = 1;
+            printf("*** 'reset' overrides the 'dryrun' flag and resets all prior errors to allow writes\n");
 
             continue;
 
@@ -424,14 +433,14 @@ char data[DESTSIZE];
             /*  -----------------  */
             /*  unknown statement  */
             /*  -----------------  */
-            printf("--> (the above assumed to be a comment)\n");
+            printf("*** unknown statement (the above assumed to be a comment) ***\n");
         }
 
     } // end of 'while (fgets(buf,'
 
     printf("*** end of control cards ***\n");
     if (!strcmp(fn, "")) {
-        if(debug) printf("--> closing %s\n", fn);
+        if(debug) printf("(debug) closing %s\n", fn);
         close(fd);
     }
     exit(EXIT_SUCCESS);
