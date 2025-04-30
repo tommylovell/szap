@@ -1,0 +1,20 @@
+#!/bin/bash
+szap <<EOF
+dump 2024-11-19-raspios-bookworm-arm64.gi.img
+name 2024-11-19-raspios-bookworm-arm64.gi.img
+ver 1b8 5f672e44
+ver 1c2 0c
+ver 1c6 00200000
+ver 1ca 00001000
+ver 1d2 83
+ver 1d6 00201000
+ver 1da 0060a200
+ver 1e2 00
+ver 1e6 00000000
+ver 1ea 00000000
+rep 1da 00e0ef07
+rep 1e2 83
+rep 1e6 00000008
+rep 1ea 00002008
+dump 2024-11-19-raspios-bookworm-arm64.gi.img
+EOF
